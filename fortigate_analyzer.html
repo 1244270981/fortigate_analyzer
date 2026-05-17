@@ -2258,18 +2258,19 @@
                     const content = block[1];
                     const editMatch = content.match(/edit\s+(\d+)/);
                     if (editMatch) {
-                        const route = {
-                            id: editMatch[1],
-                            vdom: vdom,
-                            dst: extractSetting(content, 'set dst') || '0.0.0.0 0.0.0.0',
-                            gateway: extractSetting(content, 'set gateway'),
-                            device: extractSetting(content, 'set device') || (extractSetting(content, 'set virtual-wan-link') === 'enable' ? 'virtual-wan-link' : null),
-                            distance: extractSetting(content, 'set distance') || '10',
-                            priority: extractSetting(content, 'set priority') || '0',
-                            status: extractSetting(content, 'set status') === 'disable' ? '禁用' : '启用',
-                            blackhole: extractSetting(content, 'set blackhole') === 'enable',
-                            virtualWanLink: extractSetting(content, 'set virtual-wan-link') === 'enable'
-                        };
+                        const isVirtualWanLink = extractSetting(content, 'set virtual-wan-link') === 'enable' || extractSetting(content, 'set sdwan') === 'enable';
+                            const route = {
+                                id: editMatch[1],
+                                vdom: vdom,
+                                dst: extractSetting(content, 'set dst') || '0.0.0.0 0.0.0.0',
+                                gateway: extractSetting(content, 'set gateway'),
+                                device: extractSetting(content, 'set device') || (isVirtualWanLink ? 'virtual-wan-link' : null),
+                                distance: extractSetting(content, 'set distance') || '10',
+                                priority: extractSetting(content, 'set priority') || '0',
+                                status: extractSetting(content, 'set status') === 'disable' ? '禁用' : '启用',
+                                blackhole: extractSetting(content, 'set blackhole') === 'enable',
+                                virtualWanLink: isVirtualWanLink
+                            };
                         staticRoutes.push(route);
                     }
                 }
@@ -2372,7 +2373,7 @@
         }
 
         function analyzeSDWAN(allModules) {
-            const sdwanModule = allModules['config system virtual-wan-link'];
+            const sdwanModule = allModules['config system sdwan'] || allModules['config system virtual-wan-link'];
             if (!sdwanModule) return;
 
             // 从 config system interface 获取接口信息
