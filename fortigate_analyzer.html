@@ -2298,6 +2298,22 @@
                 routesByVdom[route.vdom].push(route);
             }
 
+            // 路由类型排序函数：默认路由 > 普通路由 > 黑洞路由
+            const routeTypeOrder = (route) => {
+                if (route.dst === '0.0.0.0 0.0.0.0') return 0;
+                if (route.blackhole) return 2;
+                return 1;
+            };
+
+            // 排序函数：先按类型排序，再按出接口排序
+            const sortRoutes = (routes) => {
+                return routes.sort((a, b) => {
+                    const typeDiff = routeTypeOrder(a) - routeTypeOrder(b);
+                    if (typeDiff !== 0) return typeDiff;
+                    return (a.device || '').localeCompare(b.device || '');
+                });
+            };
+
             let html = '<div class="analysis-section">';
             html += '<div class="analysis-header" onclick="toggleSection(this)">';
             html += '<span class="analysis-icon">🚦</span>';
@@ -2307,7 +2323,20 @@
             html += '<div class="analysis-content" style="display: none;">';
 
             for (const [vdom, routes] of Object.entries(routesByVdom)) {
-                html += `<h3 style="color: var(--header-bg); margin: 12px 0 8px 0; font-size: 16px;">🔹 ${escapeHtml(vdom)}</h3>`;
+                // 统计各类路由数量
+                const defaultCount = routes.filter(r => r.dst === '0.0.0.0 0.0.0.0').length;
+                const normalCount = routes.filter(r => r.dst !== '0.0.0.0 0.0.0.0' && !r.blackhole).length;
+                const blackholeCount = routes.filter(r => r.blackhole).length;
+
+                // 排序路由
+                const sortedRoutes = sortRoutes(routes);
+
+                html += `<h3 style="color: var(--header-bg); margin: 12px 0 8px 0; font-size: 16px;">🔹 ${escapeHtml(vdom)}`;
+                html += `<span style="font-size: 13px; font-weight: normal; margin-left: 10px;">`;
+                html += `<span style="background: rgba(68, 114, 196, 0.2); color: #2e5090; padding: 2px 8px; border-radius: 4px; margin-right: 5px;">默认路由: ${defaultCount}</span>`;
+                html += `<span style="background: rgba(0, 176, 80, 0.2); color: #007037; padding: 2px 8px; border-radius: 4px; margin-right: 5px;">静态路由: ${normalCount}</span>`;
+                html += `<span style="background: rgba(192, 0, 0, 0.2); color: #8b0000; padding: 2px 8px; border-radius: 4px;">黑洞路由: ${blackholeCount}</span>`;
+                html += `</span></h3>`;
                 html += '<div class="analysis-table-wrapper">';
                 html += '<table class="analysis-table">';
                 html += '<thead>';
@@ -2324,7 +2353,7 @@
                 html += '</thead>';
                 html += '<tbody>';
 
-                for (const route of routes) {
+                for (const route of sortedRoutes) {
                     const isDefault = route.dst === '0.0.0.0 0.0.0.0';
                     let type = isDefault ? '默认路由' : '普通路由';
                     if (route.blackhole) type = '黑洞路由';
@@ -2998,7 +3027,20 @@
             html += '<div class="analysis-content" style="display: none;">';
 
             for (const [vdom, vdomPolicies] of Object.entries(policiesByVdom)) {
-                html += '<h3 style="color: var(--header-bg); margin: 16px 0 8px 0; font-size: 16px;">🔹 ' + escapeHtml(vdom) + ' - 防火墙策略</h3>';
+                const totalCount = vdomPolicies.length;
+                const disabledCount = vdomPolicies.filter(p => p.disabled).length;
+                const natEnabledCount = vdomPolicies.filter(p => p.nat).length;
+                const denyCount = vdomPolicies.filter(p => p.deny).length;
+                const disabledNatCount = vdomPolicies.filter(p => p.disabled && p.nat).length;
+
+                html += '<h3 style="color: var(--header-bg); margin: 16px 0 8px 0; font-size: 16px;">🔹 ' + escapeHtml(vdom) + ' - 防火墙策略';
+                html += '<span style="font-size: 13px; font-weight: normal; margin-left: 10px;">';
+                html += '<span style="background: rgba(68, 114, 196, 0.2); color: #2e5090; padding: 2px 8px; border-radius: 4px; margin-right: 5px;">总数: ' + totalCount + '</span>';
+                html += '<span style="background: rgba(249, 150, 70, 0.2); color: #c65d00; padding: 2px 8px; border-radius: 4px; margin-right: 5px;">禁用: ' + disabledCount + '</span>';
+                html += '<span style="background: rgba(0, 176, 80, 0.2); color: #007037; padding: 2px 8px; border-radius: 4px; margin-right: 5px;">启用NAT: ' + natEnabledCount + '</span>';
+                html += '<span style="background: rgba(192, 0, 0, 0.2); color: #8b0000; padding: 2px 8px; border-radius: 4px; margin-right: 5px;">Deny: ' + denyCount + '</span>';
+                html += '<span style="background: rgba(155, 89, 182, 0.2); color: #6c3483; padding: 2px 8px; border-radius: 4px;">禁用+NAT: ' + disabledNatCount + '</span>';
+                html += '</span></h3>';
                 html += '<div class="analysis-table-wrapper" style="margin-bottom: 16px;">';
                 html += '<table class="analysis-table">';
                 html += '<thead>';
@@ -5272,11 +5314,11 @@
             
             const getVdomClass = (vdom) => {
                 const vdomLower = (vdom || '').toLowerCase();
-                if (vdomLower === 'root') return 'vdom-root';
-                if (vdomLower === 'mgt' || vdomLower === 'management') return 'vdom-mgt';
-                if (vdomLower === 'snat') return 'vdom-snat';
-                if (vdomLower === 'ipsec') return 'vdom-ipsec';
-                return 'vdom-default';
+                if (vdomLower === 'root') return 'tag-vdom-root';
+                if (vdomLower === 'mgt' || vdomLower === 'management') return 'tag-vdom-mgt';
+                if (vdomLower === 'snat') return 'tag-vdom-snat';
+                if (vdomLower === 'ipsec') return 'tag-vdom-ipsec';
+                return 'tag-vdom-default';
             };
             
             const usedInterfaces = {};
@@ -5350,36 +5392,47 @@
             html += '.analysis-content { margin-top: 12px; }';
             html += '.analysis-stats { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }';
             html += '.analysis-stat { display: flex; align-items: center; gap: 6px; background: var(--bg-tertiary); padding: 6px 12px; border-radius: 6px; }';
-            html += '.analysis-stat .stat-icon { font-size: 14px; }';
-            html += '.analysis-stat .stat-label { font-size: 13px; color: var(--text-secondary); }';
-            html += '.analysis-stat .stat-value { font-size: 14px; font-weight: bold; color: var(--text-primary); font-family: Verdana, sans-serif; }';
+            html += '.analysis-stat .stat-icon { font-size: 18px; }';
+            html += '.analysis-stat .stat-label { font-size: 15px; color: var(--text-secondary); }';
+            html += '.analysis-stat .stat-value { font-size: 16px; font-weight: bold; color: var(--text-primary); font-family: Verdana, sans-serif; }';
             html += '.interface-tree { list-style: none; padding-left: 0; }';
-            html += '.interface-tree li { position: relative; padding-left: 24px; margin-bottom: 4px; }';
-            html += '.interface-tree li::before { content: ""; position: absolute; left: 0; top: 8px; width: 16px; height: 1px; background: #ccc; }';
+            html += '.interface-tree li { position: relative; padding-left: 30px; margin-bottom: 6px; }';
+            html += '.interface-tree li::before { content: ""; position: absolute; left: 0; top: 10px; width: 20px; height: 1px; background: #ccc; }';
             html += '.interface-tree li::after { content: ""; position: absolute; left: 0; top: 0; width: 1px; height: 100%; background: #ccc; }';
-            html += '.interface-tree li:last-child::after { height: 8px; }';
+            html += '.interface-tree li:last-child::after { height: 10px; }';
             html += '.interface-tree > li::before, .interface-tree > li::after { display: none; }';
-            html += '.interface-node { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 4px; background: var(--bg-secondary); }';
-            html += '.interface-node.physical { border-left: 4px solid #4472C4; }';
-            html += '.interface-node.aggregate { border-left: 4px solid #70AD47; }';
-            html += '.interface-node.subinterface { border-left: 4px solid #F79646; }';
-            html += '.interface-node.tunnel { border-left: 4px solid #00B0F0; }';
-            html += '.interface-node.phase1 { border-left: 4px solid #9B59B6; }';
-            html += '.interface-node.phase2 { border-left: 4px solid #C00000; }';
-            html += '.interface-name { font-weight: bold; color: var(--text-primary); font-family: Verdana, sans-serif; }';
-            html += '.interface-ip { font-size: 12px; color: var(--text-secondary); font-family: Verdana, sans-serif; }';
-            html += '.interface-vdom { font-size: 10px; color: #888; background: var(--bg-tertiary); padding: 1px 4px; border-radius: 3px; margin-left: 4px; font-family: Verdana, sans-serif; }';
-            html += '.interface-icon { font-size: 14px; }';
-            html += '.child-list { list-style: none; padding-left: 0; margin-top: 2px; }';
-            html += '.child-list li { padding-left: 24px; }';
-            html += '.member-list { list-style: none; padding-left: 20px; margin-top: 4px; font-size: 12px; color: var(--text-secondary); }';
-            html += '.member-item { padding: 2px 0; }';
-            html += '.interface-node { padding: 6px 10px; margin: 2px 0; border-radius: 6px; background: var(--bg-secondary); }';
-            html += '.vdom-root { background: rgba(68, 114, 196, 0.15); }';
-            html += '.vdom-mgt { background: rgba(112, 173, 71, 0.15); }';
-            html += '.vdom-snat { background: rgba(249, 150, 70, 0.15); }';
-            html += '.vdom-ipsec { background: rgba(0, 176, 240, 0.15); }';
-            html += '.vdom-default { background: var(--bg-secondary); }';
+            html += '.interface-node { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 5px; background: var(--bg-secondary); }';
+            html += '.interface-node.physical { border-left: 5px solid #4472C4; }';
+            html += '.interface-node.aggregate { border-left: 5px solid #70AD47; }';
+            html += '.interface-node.subinterface { border-left: 5px solid #F79646; }';
+            html += '.interface-node.tunnel { border-left: 5px solid #00B0F0; }';
+            html += '.interface-node.phase1 { border-left: 5px solid #9B59B6; }';
+            html += '.interface-node.phase2 { border-left: 5px solid #C00000; }';
+            html += '.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: Verdana, sans-serif; font-weight: 500; }';
+            html += '.tag-name { font-weight: bold; }';
+            html += '.tag-name-physical { background: rgba(68, 114, 196, 0.25); color: #2e5090; border: 1px solid rgba(68, 114, 196, 0.5); }';
+            html += '.tag-name-aggregate { background: rgba(112, 173, 71, 0.25); color: #527a33; border: 1px solid rgba(112, 173, 71, 0.5); }';
+            html += '.tag-name-subinterface { background: rgba(249, 150, 70, 0.25); color: #c65d00; border: 1px solid rgba(249, 150, 70, 0.5); }';
+            html += '.tag-name-tunnel { background: rgba(0, 176, 240, 0.25); color: #0070a8; border: 1px solid rgba(0, 176, 240, 0.5); }';
+            html += '.tag-name-phase1 { background: rgba(155, 89, 182, 0.25); color: #6c3483; border: 1px solid rgba(155, 89, 182, 0.5); }';
+            html += '.tag-name-phase2 { background: rgba(192, 0, 0, 0.25); color: #8b0000; border: 1px solid rgba(192, 0, 0, 0.5); }';
+            html += '.tag-vdom-root { background: rgba(68, 114, 196, 0.2); color: #2e5090; border: 1px solid rgba(68, 114, 196, 0.4); }';
+            html += '.tag-vdom-mgt { background: rgba(112, 173, 71, 0.2); color: #527a33; border: 1px solid rgba(112, 173, 71, 0.4); }';
+            html += '.tag-vdom-snat { background: rgba(249, 150, 70, 0.2); color: #c65d00; border: 1px solid rgba(249, 150, 70, 0.4); }';
+            html += '.tag-vdom-ipsec { background: rgba(0, 176, 240, 0.2); color: #0070a8; border: 1px solid rgba(0, 176, 240, 0.4); }';
+            html += '.tag-vdom-default { background: rgba(156, 156, 156, 0.2); color: #5a5a5a; border: 1px solid rgba(156, 156, 156, 0.4); }';
+            html += '.tag-ip { background: rgba(0, 176, 80, 0.2); color: #007037; border: 1px solid rgba(0, 176, 80, 0.4); }';
+            html += '.tag-gateway { background: rgba(0, 176, 240, 0.2); color: #0070a8; border: 1px solid rgba(0, 176, 240, 0.4); }';
+            html += '.tag-vlan { background: rgba(249, 150, 70, 0.2); color: #c65d00; border: 1px solid rgba(249, 150, 70, 0.4); }';
+            html += '.tag-member { background: rgba(112, 173, 71, 0.2); color: #527a33; border: 1px solid rgba(112, 173, 71, 0.4); }';
+            html += '.tag-proposal { background: rgba(155, 89, 182, 0.2); color: #6c3483; border: 1px solid rgba(155, 89, 182, 0.4); }';
+            html += '.tag-remote { background: rgba(192, 0, 0, 0.2); color: #8b0000; border: 1px solid rgba(192, 0, 0, 0.4); }';
+            html += '.interface-icon { font-size: 18px; }';
+            html += '.child-list { list-style: none; padding-left: 0; margin-top: 4px; }';
+            html += '.child-list li { padding-left: 30px; }';
+            html += '.member-list { list-style: none; padding-left: 24px; margin-top: 6px; font-size: 14px; color: var(--text-secondary); }';
+            html += '.member-item { padding: 3px 0; }';
+            html += '.interface-node { padding: 8px 12px; margin: 3px 0; border-radius: 6px; background: var(--bg-secondary); }';
             html += '</style>';
             
             html += '<ul class="interface-tree">';
@@ -5397,13 +5450,13 @@
                 const isPhysical = iface.category === 'physical';
                 html += `<div class="interface-node ${isPhysical ? 'physical' : 'aggregate'} ${getVdomClass(iface.vdom)}">`;
                 html += `<span class="interface-icon">${isPhysical ? '🔌' : '🔗'}</span>`;
-                html += `<span class="interface-name">${escapeHtml(name)}</span>`;
-                html += `<span class="interface-vdom">[${escapeHtml(iface.vdom)}]</span>`;
+                html += `<span class="tag tag-name tag-name-${isPhysical ? 'physical' : 'aggregate'}">${escapeHtml(name)}</span>`;
+                html += `<span class="tag ${getVdomClass(iface.vdom)}">[${escapeHtml(iface.vdom)}]</span>`;
                 if (iface.ip) {
-                    html += `<span class="interface-ip">(${escapeHtml(iface.ip)})</span>`;
+                    html += `<span class="tag tag-ip">${escapeHtml(iface.ip)}</span>`;
                 }
                 if (!isPhysical && iface.members && iface.members.length > 0) {
-                    html += `<span class="interface-ip">(成员: ${escapeHtml(iface.members.join(', '))})</span>`;
+                    html += `<span class="tag tag-member">成员: ${escapeHtml(iface.members.join(', '))}</span>`;
                 }
                 html += `</div>`;
                 
@@ -5420,13 +5473,13 @@
                         html += `<li>`;
                         html += `<div class="interface-node phase1 ${getVdomClass(phase1.vdom)}">`;
                         html += `<span class="interface-icon">🌐</span>`;
-                        html += `<span class="interface-name">${escapeHtml(phase1.name)}</span>`;
-                        html += `<span class="interface-vdom">[${escapeHtml(phase1.vdom)}]</span>`;
+                        html += `<span class="tag tag-name tag-name-phase1">${escapeHtml(phase1.name)}</span>`;
+                        html += `<span class="tag ${getVdomClass(phase1.vdom)}">[${escapeHtml(phase1.vdom)}]</span>`;
                         if (phase1.proposal) {
-                            html += `<span class="interface-ip">(提议: ${escapeHtml(phase1.proposal)})</span>`;
+                            html += `<span class="tag tag-proposal">提议: ${escapeHtml(phase1.proposal)}</span>`;
                         }
                         if (phase1.remoteGateway) {
-                            html += `<span class="interface-ip">(对端网关: ${escapeHtml(phase1.remoteGateway)})</span>`;
+                            html += `<span class="tag tag-gateway">对端: ${escapeHtml(phase1.remoteGateway)}</span>`;
                         }
                         html += `</div>`;
                         
@@ -5443,10 +5496,10 @@
                                 html += `<li>`;
                                 html += `<div class="interface-node phase2 ${getVdomClass(phase2.vdom)}">`;
                                 html += `<span class="interface-icon">🔒</span>`;
-                                html += `<span class="interface-name">${escapeHtml(phase2.name)}</span>`;
-                                html += `<span class="interface-vdom">[${escapeHtml(phase2.vdom)}]</span>`;
+                                html += `<span class="tag tag-name tag-name-phase2">${escapeHtml(phase2.name)}</span>`;
+                                html += `<span class="tag ${getVdomClass(phase2.vdom)}">[${escapeHtml(phase2.vdom)}]</span>`;
                                 if (phase2.proposal) {
-                                    html += `<span class="interface-ip">(提议: ${escapeHtml(phase2.proposal)})</span>`;
+                                    html += `<span class="tag tag-proposal">提议: ${escapeHtml(phase2.proposal)}</span>`;
                                 }
                                 html += `</div>`;
                                 
@@ -5463,13 +5516,13 @@
                                         html += `<li>`;
                                         html += `<div class="interface-node tunnel ${getVdomClass(tun.iface.vdom)}">`;
                                         html += `<span class="interface-icon">🛤️</span>`;
-                                        html += `<span class="interface-name">${escapeHtml(tun.name)}</span>`;
-                                        html += `<span class="interface-vdom">[${escapeHtml(tun.iface.vdom)}]</span>`;
+                                        html += `<span class="tag tag-name tag-name-tunnel">${escapeHtml(tun.name)}</span>`;
+                                        html += `<span class="tag ${getVdomClass(tun.iface.vdom)}">[${escapeHtml(tun.iface.vdom)}]</span>`;
                                         if (tun.iface.ip) {
-                                            html += `<span class="interface-ip">(${escapeHtml(tun.iface.ip)})</span>`;
+                                            html += `<span class="tag tag-ip">${escapeHtml(tun.iface.ip)}</span>`;
                                         }
                                         if (tun.iface.remoteIp) {
-                                            html += `<span class="interface-ip">(远程: ${escapeHtml(tun.iface.remoteIp)})</span>`;
+                                            html += `<span class="tag tag-remote">远程: ${escapeHtml(tun.iface.remoteIp)}</span>`;
                                         }
                                         html += `</div>`;
                                         html += `</li>`;
@@ -5508,13 +5561,13 @@
                             const childIcon = child.type === 'tunnel' ? '🛤️' : '📦';
                             html += `<div class="interface-node ${child.type} ${getVdomClass(child.iface.vdom)}">`;
                             html += `<span class="interface-icon">${childIcon}</span>`;
-                            html += `<span class="interface-name">${escapeHtml(child.name)}</span>`;
-                            html += `<span class="interface-vdom">[${escapeHtml(child.iface.vdom)}]</span>`;
+                            html += `<span class="tag tag-name tag-name-${child.type}">${escapeHtml(child.name)}</span>`;
+                            html += `<span class="tag ${getVdomClass(child.iface.vdom)}">[${escapeHtml(child.iface.vdom)}]</span>`;
                             if (child.iface.ip) {
-                                html += `<span class="interface-ip">(${escapeHtml(child.iface.ip)})</span>`;
+                                html += `<span class="tag tag-ip">${escapeHtml(child.iface.ip)}</span>`;
                             }
                             if (child.iface.vlanid) {
-                                html += `<span class="interface-ip">(VLAN: ${escapeHtml(child.iface.vlanid)})</span>`;
+                                html += `<span class="tag tag-vlan">VLAN: ${escapeHtml(child.iface.vlanid)}</span>`;
                             }
                             html += `</div>`;
                             
@@ -5532,14 +5585,14 @@
                                         html += `<li>`;
                                         html += `<div class="interface-node phase1 ${getVdomClass(phase1.vdom)}">`;
                                         html += `<span class="interface-icon">🌐</span>`;
-                                        html += `<span class="interface-name">${escapeHtml(phase1.name)}</span>`;
-                                        html += `<span class="interface-vdom">[${escapeHtml(phase1.vdom)}]</span>`;
-                                        if (phase1.proposal) {
-                                            html += `<span class="interface-ip">(提议: ${escapeHtml(phase1.proposal)})</span>`;
-                                        }
-                                        if (phase1.remoteGateway) {
-                                            html += `<span class="interface-ip">(对端网关: ${escapeHtml(phase1.remoteGateway)})</span>`;
-                                        }
+                                        html += `<span class="tag tag-name tag-name-phase1">${escapeHtml(phase1.name)}</span>`;
+                                        html += `<span class="tag ${getVdomClass(phase1.vdom)}">[${escapeHtml(phase1.vdom)}]</span>`;
+                                            if (phase1.proposal) {
+                                                html += `<span class="tag tag-proposal">提议: ${escapeHtml(phase1.proposal)}</span>`;
+                                            }
+                                            if (phase1.remoteGateway) {
+                                                html += `<span class="tag tag-gateway">对端: ${escapeHtml(phase1.remoteGateway)}</span>`;
+                                            }
                                         html += `</div>`;
                                         
                                         const childPhase2List = [];
@@ -5555,11 +5608,11 @@
                                                 html += `<li>`;
                                                 html += `<div class="interface-node phase2 ${getVdomClass(phase2.vdom)}">`;
                                                 html += `<span class="interface-icon">🔒</span>`;
-                                                html += `<span class="interface-name">${escapeHtml(phase2.name)}</span>`;
-                                                html += `<span class="interface-vdom">[${escapeHtml(phase2.vdom)}]</span>`;
-                                                if (phase2.proposal) {
-                                                    html += `<span class="interface-ip">(提议: ${escapeHtml(phase2.proposal)})</span>`;
-                                                }
+                                                html += `<span class="tag tag-name tag-name-phase2">${escapeHtml(phase2.name)}</span>`;
+                                                html += `<span class="tag ${getVdomClass(phase2.vdom)}">[${escapeHtml(phase2.vdom)}]</span>`;
+                                                        if (phase2.proposal) {
+                                                            html += `<span class="tag tag-proposal">提议: ${escapeHtml(phase2.proposal)}</span>`;
+                                                        }
                                                 html += `</div>`;
                                                 
                                                 const childTunnelList = [];
@@ -5575,14 +5628,14 @@
                                                         html += `<li>`;
                                                         html += `<div class="interface-node tunnel ${getVdomClass(tun.iface.vdom)}">`;
                                                         html += `<span class="interface-icon">🛤️</span>`;
-                                                        html += `<span class="interface-name">${escapeHtml(tun.name)}</span>`;
-                                                        html += `<span class="interface-vdom">[${escapeHtml(tun.iface.vdom)}]</span>`;
-                                                        if (tun.iface.ip) {
-                                                            html += `<span class="interface-ip">(${escapeHtml(tun.iface.ip)})</span>`;
-                                                        }
-                                                        if (tun.iface.remoteIp) {
-                                                            html += `<span class="interface-ip">(远程: ${escapeHtml(tun.iface.remoteIp)})</span>`;
-                                                        }
+                                                        html += `<span class="tag tag-name tag-name-tunnel">${escapeHtml(tun.name)}</span>`;
+                                                        html += `<span class="tag ${getVdomClass(tun.iface.vdom)}">[${escapeHtml(tun.iface.vdom)}]</span>`;
+                                                                if (tun.iface.ip) {
+                                                                    html += `<span class="tag tag-ip">${escapeHtml(tun.iface.ip)}</span>`;
+                                                                }
+                                                                if (tun.iface.remoteIp) {
+                                                                    html += `<span class="tag tag-remote">远程: ${escapeHtml(tun.iface.remoteIp)}</span>`;
+                                                                }
                                                         html += `</div>`;
                                                         html += `</li>`;
                                                     }
@@ -5614,13 +5667,13 @@
                     html += `<li>`;
                     html += `<div class="interface-node subinterface ${getVdomClass(iface.vdom)}">`;
                     html += `<span class="interface-icon">📦</span>`;
-                    html += `<span class="interface-name">${escapeHtml(name)}</span>`;
-                    html += `<span class="interface-vdom">[${escapeHtml(iface.vdom)}]</span>`;
+                    html += `<span class="tag tag-name tag-name-subinterface">${escapeHtml(name)}</span>`;
+                    html += `<span class="tag ${getVdomClass(iface.vdom)}">[${escapeHtml(iface.vdom)}]</span>`;
                     if (iface.ip) {
-                        html += `<span class="interface-ip">(${escapeHtml(iface.ip)})</span>`;
+                        html += `<span class="tag tag-ip">${escapeHtml(iface.ip)}</span>`;
                     }
                     if (iface.vlanid) {
-                        html += `<span class="interface-ip">(VLAN: ${escapeHtml(iface.vlanid)})</span>`;
+                        html += `<span class="tag tag-vlan">VLAN: ${escapeHtml(iface.vlanid)}</span>`;
                     }
                     html += `</div>`;
                     
@@ -5637,14 +5690,14 @@
                             html += `<li>`;
                             html += `<div class="interface-node phase1 ${getVdomClass(phase1.vdom)}">`;
                             html += `<span class="interface-icon">🌐</span>`;
-                            html += `<span class="interface-name">${escapeHtml(phase1.name)}</span>`;
-                            html += `<span class="interface-vdom">[${escapeHtml(phase1.vdom)}]</span>`;
-                            if (phase1.proposal) {
-                                html += `<span class="interface-ip">(提议: ${escapeHtml(phase1.proposal)})</span>`;
-                            }
-                            if (phase1.remoteGateway) {
-                                html += `<span class="interface-ip">(对端网关: ${escapeHtml(phase1.remoteGateway)})</span>`;
-                            }
+                            html += `<span class="tag tag-name tag-name-phase1">${escapeHtml(phase1.name)}</span>`;
+                            html += `<span class="tag ${getVdomClass(phase1.vdom)}">[${escapeHtml(phase1.vdom)}]</span>`;
+                                if (phase1.proposal) {
+                                    html += `<span class="tag tag-proposal">提议: ${escapeHtml(phase1.proposal)}</span>`;
+                                }
+                                if (phase1.remoteGateway) {
+                                    html += `<span class="tag tag-gateway">对端: ${escapeHtml(phase1.remoteGateway)}</span>`;
+                                }
                             html += `</div>`;
                             
                             const subPhase2List = [];
@@ -5660,11 +5713,11 @@
                                     html += `<li>`;
                                     html += `<div class="interface-node phase2 ${getVdomClass(phase2.vdom)}">`;
                                     html += `<span class="interface-icon">🔒</span>`;
-                                    html += `<span class="interface-name">${escapeHtml(phase2.name)}</span>`;
-                                    html += `<span class="interface-vdom">[${escapeHtml(phase2.vdom)}]</span>`;
-                                    if (phase2.proposal) {
-                                        html += `<span class="interface-ip">(提议: ${escapeHtml(phase2.proposal)})</span>`;
-                                    }
+                                    html += `<span class="tag tag-name tag-name-phase2">${escapeHtml(phase2.name)}</span>`;
+                                    html += `<span class="tag ${getVdomClass(phase2.vdom)}">[${escapeHtml(phase2.vdom)}]</span>`;
+                                        if (phase2.proposal) {
+                                            html += `<span class="tag tag-proposal">提议: ${escapeHtml(phase2.proposal)}</span>`;
+                                        }
                                     html += `</div>`;
                                     
                                     const subTunnelList = [];
@@ -5680,14 +5733,14 @@
                                             html += `<li>`;
                                             html += `<div class="interface-node tunnel ${getVdomClass(tun.iface.vdom)}">`;
                                             html += `<span class="interface-icon">🛤️</span>`;
-                                            html += `<span class="interface-name">${escapeHtml(tun.name)}</span>`;
-                                            html += `<span class="interface-vdom">[${escapeHtml(tun.iface.vdom)}]</span>`;
-                                            if (tun.iface.ip) {
-                                                html += `<span class="interface-ip">(${escapeHtml(tun.iface.ip)})</span>`;
-                                            }
-                                            if (tun.iface.remoteIp) {
-                                                html += `<span class="interface-ip">(远程: ${escapeHtml(tun.iface.remoteIp)})</span>`;
-                                            }
+                                            html += `<span class="tag tag-name tag-name-tunnel">${escapeHtml(tun.name)}</span>`;
+                                            html += `<span class="tag ${getVdomClass(tun.iface.vdom)}">[${escapeHtml(tun.iface.vdom)}]</span>`;
+                                                if (tun.iface.ip) {
+                                                    html += `<span class="tag tag-ip">${escapeHtml(tun.iface.ip)}</span>`;
+                                                }
+                                                if (tun.iface.remoteIp) {
+                                                    html += `<span class="tag tag-remote">远程: ${escapeHtml(tun.iface.remoteIp)}</span>`;
+                                                }
                                             html += `</div>`;
                                             html += `</li>`;
                                         }
@@ -5717,14 +5770,14 @@
                             html += `<li>`;
                             html += `<div class="interface-node tunnel ${getVdomClass(child.iface.vdom)}">`;
                             html += `<span class="interface-icon">🛤️</span>`;
-                            html += `<span class="interface-name">${escapeHtml(child.name)}</span>`;
-                            html += `<span class="interface-vdom">[${escapeHtml(child.iface.vdom)}]</span>`;
-                            if (child.iface.ip) {
-                                html += `<span class="interface-ip">(${escapeHtml(child.iface.ip)})</span>`;
-                            }
-                            if (child.iface.remoteIp) {
-                                html += `<span class="interface-ip">(远程: ${escapeHtml(child.iface.remoteIp)})</span>`;
-                            }
+                            html += `<span class="tag tag-name tag-name-${child.type}">${escapeHtml(child.name)}</span>`;
+                            html += `<span class="tag ${getVdomClass(child.iface.vdom)}">[${escapeHtml(child.iface.vdom)}]</span>`;
+                                if (child.iface.ip) {
+                                    html += `<span class="tag tag-ip">${escapeHtml(child.iface.ip)}</span>`;
+                                }
+                                if (child.iface.remoteIp) {
+                                    html += `<span class="tag tag-remote">远程: ${escapeHtml(child.iface.remoteIp)}</span>`;
+                                }
                             html += `</div>`;
                             html += `</li>`;
                         }
@@ -5741,13 +5794,13 @@
                     html += `<li>`;
                     html += `<div class="interface-node tunnel ${getVdomClass(iface.vdom)}">`;
                     html += `<span class="interface-icon">🛤️</span>`;
-                    html += `<span class="interface-name">${escapeHtml(name)}</span>`;
-                    html += `<span class="interface-vdom">[${escapeHtml(iface.vdom)}]</span>`;
+                    html += `<span class="tag tag-name tag-name-tunnel">${escapeHtml(name)}</span>`;
+                    html += `<span class="tag ${getVdomClass(iface.vdom)}">[${escapeHtml(iface.vdom)}]</span>`;
                     if (iface.ip) {
-                        html += `<span class="interface-ip">(${escapeHtml(iface.ip)})</span>`;
+                        html += `<span class="tag tag-ip">${escapeHtml(iface.ip)}</span>`;
                     }
                     if (iface.remoteIp) {
-                        html += `<span class="interface-ip">(远程: ${escapeHtml(iface.remoteIp)})</span>`;
+                        html += `<span class="tag tag-remote">远程: ${escapeHtml(iface.remoteIp)}</span>`;
                     }
                     html += `</div>`;
                     html += `</li>`;
