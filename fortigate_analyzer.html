@@ -885,6 +885,8 @@
 
             <div id="firewallPolicyContainer" class="hidden"></div>
 
+            <div id="firewallVipContainer" class="hidden"></div>
+
             <div id="webfilterContainer" class="hidden"></div>
 
             <div id="dnsContainer" class="hidden"></div>
@@ -1462,6 +1464,7 @@
             analyzeSDWAN(allModules);
             analyzeIPSec(allModules);
             analyzeFirewallPolicy(allModules);
+            analyzeFirewallVip(allModules);
             analyzeWebfilter(allModules);
             analyzeBaseline(allModules);
             analyzeShaper(allModules);
@@ -3080,6 +3083,160 @@
                     html += '<td><span style="color: ' + (policy.disabled ? '#E74C3C' : '#70AD47') + ';">' + (policy.disabled ? '禁用' : '启用') + '</span></td>';
                     html += '<td><span style="color: ' + (policy.deny ? '#E74C3C' : '#70AD47') + ';">' + (policy.deny ? 'Deny' : 'Accept') + '</span></td>';
                     html += '<td><span style="color: ' + natColor + ';">' + escapeHtml(policy.natDisplay) + '</span></td>';
+                    html += '</tr>';
+                }
+
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+            }
+
+            html += '</div></div>';
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+        }
+
+        function analyzeFirewallVip(allModules) {
+            const vipModule = allModules['config firewall vip'];
+            const policyModule = allModules['config firewall policy'];
+            
+            if (!vipModule) return;
+
+            const vipToPolicies = {};
+            if (policyModule) {
+                for (const [vdom, data] of Object.entries(policyModule)) {
+                    const content = data.contentBlocks.map(block => block[1]).join('\n');
+                    const policyRegex = /edit\s+(\d+)\s*([\s\S]*?)(?=\n\s*next|\n\s*end)/gm;
+                    let policyMatch;
+                    
+                    while ((policyMatch = policyRegex.exec(content)) !== null) {
+                        const policyId = policyMatch[1];
+                        const policyContent = policyMatch[2];
+                        
+                        const dstaddrMatch = policyContent.match(/set\s+dstaddr\s+(.+)/i);
+                        if (dstaddrMatch) {
+                            const dstaddrs = dstaddrMatch[1].match(/["']([^"']+)["']/g) || [];
+                            for (const addr of dstaddrs) {
+                                const vipName = addr.replace(/["']/g, '');
+                                if (!vipToPolicies[vipName]) {
+                                    vipToPolicies[vipName] = [];
+                                }
+                                vipToPolicies[vipName].push({ vdom, policyId });
+                            }
+                        }
+                    }
+                }
+            }
+
+            const vips = [];
+            for (const [vdom, data] of Object.entries(vipModule)) {
+                const content = data.contentBlocks.map(block => block[1]).join('\n');
+                
+                const vipRegex = /edit\s+["']([^"']+)["']\s*([\s\S]*?)(?=\n\s*next|\n\s*end)/gm;
+                let vipMatch;
+                let index = 0;
+                
+                while ((vipMatch = vipRegex.exec(content)) !== null) {
+                    index++;
+                    const vipName = vipMatch[1];
+                    const vipContent = vipMatch[2];
+                    
+                    const extipMatch = vipContent.match(/set\s+extip\s+["']?([^"'\s]+)["']?/i);
+                    const extintfMatch = vipContent.match(/set\s+extintf\s+["']([^"']+)["']/i);
+                    const extportMatch = vipContent.match(/set\s+extport\s+["']?([^"'\s]+)["']?/i);
+                    const mappedipMatch = vipContent.match(/set\s+mappedip\s+["']([^"']+)["']/i);
+                    const mappedportMatch = vipContent.match(/set\s+mappedport\s+["']?([^"'\s]+)["']?/i);
+                    const intfMatch = vipContent.match(/set\s+intf\s+["']([^"']+)["']/i);
+                    const portforwardMatch = vipContent.match(/set\s+portforward\s+(\w+)/i);
+                    
+                    const policies = vipToPolicies[vipName] || [];
+                    
+                    vips.push({
+                        index: index,
+                        vdom: vdom,
+                        name: vipName,
+                        extip: extipMatch ? extipMatch[1] : '-',
+                        extintf: extintfMatch ? extintfMatch[1] : '-',
+                        extport: extportMatch ? extportMatch[1] : '-',
+                        mappedip: mappedipMatch ? mappedipMatch[1] : '-',
+                        mappedport: mappedportMatch ? mappedportMatch[1] : '-',
+                        intf: intfMatch ? intfMatch[1] : '-',
+                        portforward: portforwardMatch && portforwardMatch[1].toLowerCase() === 'enable' ? '启用' : '禁用',
+                        policies: policies
+                    });
+                }
+            }
+            
+            renderFirewallVip(vips);
+        }
+
+        function renderFirewallVip(vips) {
+            const container = document.getElementById('firewallVipContainer');
+            if (!container) return;
+
+            if (vips.length === 0) {
+                container.innerHTML = '';
+                container.classList.add('hidden');
+                return;
+            }
+
+            const vipsByVdom = {};
+            for (const vip of vips) {
+                if (!vipsByVdom[vip.vdom]) vipsByVdom[vip.vdom] = [];
+                vipsByVdom[vip.vdom].push(vip);
+            }
+
+            let html = '<div class="analysis-section">';
+            html += '<div class="analysis-header" onclick="toggleSection(this)">';
+            html += '<span class="analysis-icon">🔄</span>';
+            html += '<span class="analysis-title">VIP端口映射分析</span>';
+            html += '<span class="analysis-toggle">▼</span>';
+            html += '</div>';
+            html += '<div class="analysis-content" style="display: none;">';
+
+            for (const [vdom, vdomVips] of Object.entries(vipsByVdom)) {
+                const totalCount = vdomVips.length;
+                const portforwardCount = vdomVips.filter(v => v.portforward === '启用').length;
+
+                html += '<h3 style="color: var(--header-bg); margin: 16px 0 8px 0; font-size: 16px;">🔹 ' + escapeHtml(vdom) + ' - VIP端口映射';
+                html += '<span style="font-size: 13px; font-weight: normal; margin-left: 10px;">';
+                html += '<span style="background: rgba(68, 114, 196, 0.2); color: #2e5090; padding: 2px 8px; border-radius: 4px; margin-right: 5px;">总数: ' + totalCount + '</span>';
+                html += '<span style="background: rgba(0, 176, 80, 0.2); color: #007037; padding: 2px 8px; border-radius: 4px;">端口转发: ' + portforwardCount + '</span>';
+                html += '</span></h3>';
+                html += '<div class="analysis-table-wrapper" style="margin-bottom: 16px;">';
+                html += '<table class="analysis-table">';
+                html += '<thead>';
+                html += '<tr>';
+                html += '<th>序号</th>';
+                html += '<th>规则名称</th>';
+                html += '<th>外部公网IP</th>';
+                html += '<th>外部接口</th>';
+                html += '<th>外部端口</th>';
+                html += '<th>内部IP</th>';
+                html += '<th>内部端口</th>';
+                html += '<th>端口转发</th>';
+                html += '<th>引用策略ID</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+
+                for (const vip of vdomVips) {
+                    html += '<tr>';
+                    html += '<td>' + vip.index + '</td>';
+                    html += '<td>' + escapeHtml(vip.name) + '</td>';
+                    html += '<td>' + escapeHtml(vip.extip) + '</td>';
+                    html += '<td>' + escapeHtml(vip.extintf) + '</td>';
+                    html += '<td>' + escapeHtml(vip.extport) + '</td>';
+                    html += '<td>' + escapeHtml(vip.mappedip) + '</td>';
+                    html += '<td>' + escapeHtml(vip.mappedport) + '</td>';
+                    html += '<td><span style="color: ' + (vip.portforward === '启用' ? '#70AD47' : '#95A5A6') + ';">' + escapeHtml(vip.portforward) + '</span></td>';
+                    html += '<td>';
+                    if (vip.policies && vip.policies.length > 0) {
+                        html += vip.policies.map(p => escapeHtml(p.policyId)).join(', ');
+                    } else {
+                        html += '-';
+                    }
+                    html += '</td>';
                     html += '</tr>';
                 }
 
@@ -5924,6 +6081,7 @@
             { id: 'baselineContainer', name: '配置基线一览表', icon: '📊' },
             { id: 'systemZoneContainer', name: '安全域配置分析', icon: '🔒' },
             { id: 'firewallPolicyContainer', name: '防火墙策略分析', icon: '🔥' },
+            { id: 'firewallVipContainer', name: 'VIP端口映射分析', icon: '🔄' },
             { id: 'bgpAnalysisContainer', name: 'BGP配置分析', icon: '🌐' },
             { id: 'webfilterContainer', name: 'Web过滤配置分析', icon: '🔗' },
             { id: 'sdwanContainer', name: 'SD-WAN配置分析', icon: '📡' },
