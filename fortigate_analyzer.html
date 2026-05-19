@@ -3082,12 +3082,22 @@
                         }
                     }
                     
-                    const srcIntfMatch = policyContent.match(/set\s+srcintf\s+["']([^"']+)["']/i);
-                    const dstIntfMatch = policyContent.match(/set\s+dstintf\s+["']([^"']+)["']/i);
-                    const scheduleMatch = policyContent.match(/set\s+schedule\s+["']([^"']+)["']/i);
-                    const serviceMatch = policyContent.match(/set\s+service\s+["']([^"']+)["']/i);
-                    const srcAddrMatch = policyContent.match(/set\s+srcaddr\s+["']([^"']+)["']/i);
-                    const dstAddrMatch = policyContent.match(/set\s+dstaddr\s+["']([^"']+)["']/i);
+                    const extractMultiValue = (content, fieldName) => {
+                        const regex = new RegExp(`set\\s+${fieldName}\\s+(.+)`, 'i');
+                        const match = content.match(regex);
+                        if (!match) return '-';
+                        const values = match[1].match(/"[^"]+"|'[^']+'|\S+/g);
+                        if (!values) return '-';
+                        return values.map(v => v.replace(/["']/g, '')).join(', ');
+                    };
+                    
+                    const srcintf = extractMultiValue(policyContent, 'srcintf');
+                    const dstintf = extractMultiValue(policyContent, 'dstintf');
+                    const schedule = extractMultiValue(policyContent, 'schedule');
+                    const service = extractMultiValue(policyContent, 'service');
+                    const srcaddr = extractMultiValue(policyContent, 'srcaddr');
+                    const dstaddr = extractMultiValue(policyContent, 'dstaddr');
+                    
                     const webfilterProfileMatch = policyContent.match(/set\s+webfilter-profile\s+["']([^"']+)["']/i);
                     const applicationListMatch = policyContent.match(/set\s+application-list\s+["']([^"']+)["']/i);
                     
@@ -3098,12 +3108,12 @@
                         deny: isDeny,
                         nat: isNatEnabled,
                         natDisplay: natDisplay,
-                        srcintf: srcIntfMatch ? srcIntfMatch[1] : '-',
-                        dstintf: dstIntfMatch ? dstIntfMatch[1] : '-',
-                        schedule: scheduleMatch ? scheduleMatch[1] : '-',
-                        service: serviceMatch ? serviceMatch[1] : '-',
-                        srcaddr: srcAddrMatch ? srcAddrMatch[1] : '-',
-                        dstaddr: dstAddrMatch ? dstAddrMatch[1] : '-',
+                        srcintf: srcintf,
+                        dstintf: dstintf,
+                        schedule: schedule,
+                        service: service,
+                        srcaddr: srcaddr,
+                        dstaddr: dstaddr,
                         webfilterProfile: webfilterProfileMatch ? webfilterProfileMatch[1] : '-',
                         applicationList: applicationListMatch ? applicationListMatch[1] : '-'
                     });
@@ -3122,6 +3132,14 @@
                 container.classList.add('hidden');
                 return;
             }
+
+            const formatMultiValue = (value) => {
+                if (!value || value === '-' || !value.includes(',')) {
+                    return escapeHtml(value);
+                }
+                const items = value.split(',').map(item => item.trim());
+                return items.join('<br>');
+            };
 
             const policiesByVdom = {};
             for (const policy of policies) {
@@ -3180,12 +3198,12 @@
                     
                     html += '<tr' + (bgColor ? ' style="background-color: ' + bgColor + ';"' : '') + '>';
                     html += '<td>' + escapeHtml(policy.id) + '</td>';
-                    html += '<td>' + escapeHtml(policy.srcintf) + '</td>';
-                    html += '<td>' + escapeHtml(policy.dstintf) + '</td>';
-                    html += '<td>' + escapeHtml(policy.srcaddr) + '</td>';
-                    html += '<td>' + escapeHtml(policy.dstaddr) + '</td>';
-                    html += '<td>' + escapeHtml(policy.schedule) + '</td>';
-                    html += '<td>' + escapeHtml(policy.service) + '</td>';
+                    html += '<td>' + formatMultiValue(policy.srcintf) + '</td>';
+                    html += '<td>' + formatMultiValue(policy.dstintf) + '</td>';
+                    html += '<td>' + formatMultiValue(policy.srcaddr) + '</td>';
+                    html += '<td>' + formatMultiValue(policy.dstaddr) + '</td>';
+                    html += '<td>' + formatMultiValue(policy.schedule) + '</td>';
+                    html += '<td>' + formatMultiValue(policy.service) + '</td>';
                     html += '<td>' + escapeHtml(policy.webfilterProfile) + '</td>';
                     html += '<td>' + escapeHtml(policy.applicationList) + '</td>';
                     html += '<td><span style="color: ' + (policy.disabled ? '#E74C3C' : '#70AD47') + ';">' + (policy.disabled ? '禁用' : '启用') + '</span></td>';
