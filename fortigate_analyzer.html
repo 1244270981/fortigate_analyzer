@@ -2308,12 +2308,35 @@
                 return 1;
             };
 
-            // 排序函数：先按类型排序，再按出接口排序
+            // 将IP地址转换为数字便于排序
+            const ipToNumber = (ip) => {
+                return ip.split('.').reduce((acc, octet) => (acc << 8) + parseInt(octet, 10), 0) >>> 0;
+            };
+
+            // 获取路由的网段地址
+            const getNetworkAddress = (route) => {
+                const [ip, mask] = route.dst.split(' ');
+                if (!ip || !mask) return 0;
+                const ipNum = ipToNumber(ip);
+                const maskNum = ipToNumber(mask);
+                return ipNum & maskNum;
+            };
+
+            // 排序函数：先按类型排序，再按网段和掩码排序
             const sortRoutes = (routes) => {
                 return routes.sort((a, b) => {
                     const typeDiff = routeTypeOrder(a) - routeTypeOrder(b);
                     if (typeDiff !== 0) return typeDiff;
-                    return (a.device || '').localeCompare(b.device || '');
+                    
+                    // 按网段排序
+                    const networkA = getNetworkAddress(a);
+                    const networkB = getNetworkAddress(b);
+                    if (networkA !== networkB) return networkA - networkB;
+                    
+                    // 按掩码排序
+                    const maskA = ipToNumber(a.dst.split(' ')[1] || '0.0.0.0');
+                    const maskB = ipToNumber(b.dst.split(' ')[1] || '0.0.0.0');
+                    return maskB - maskA;
                 });
             };
 
@@ -2542,11 +2565,21 @@
                         const fullContent = editMatch[0];
                         const healthName = editMatch[1];
 
-                        const serverMatch = fullContent.match(/set\s+server\s+"([^"]+)"/);
+                        const serverMatches = fullContent.match(/set\s+server\s+("[^"]+"\s*)+/g);
                         const intervalMatch = fullContent.match(/set\s+interval\s+(\d+)/);
                         const membersMatch = fullContent.match(/set\s+members\s+([\d\s]+)/);
 
-                        const server = serverMatch ? serverMatch[1] : null;
+                        let server = null;
+                        if (serverMatches) {
+                            const servers = [];
+                            for (const match of serverMatches) {
+                                const serverNames = match.match(/"([^"]+)"/g);
+                                if (serverNames) {
+                                    servers.push(...serverNames.map(s => s.replace(/"/g, '')));
+                                }
+                            }
+                            server = servers.join(', ');
+                        }
                         const interval = intervalMatch ? intervalMatch[1] : '5000';
                         const members = membersMatch ? membersMatch[1].trim() : null;
 
@@ -2607,28 +2640,103 @@
 
                     const serviceBlock = content.substring(serviceStart, serviceEnd + 3);
 
-                    // 使用正则匹配所有 edit 块
-                    const editRegex = /edit\s+(\d+)[\s\S]*?next/gi;
-                    let editMatch;
-                    while ((editMatch = editRegex.exec(serviceBlock)) !== null) {
-                        const fullContent = editMatch[0];
-                        const serviceId = editMatch[1];
+                    // 使用括号计数方式匹配所有 edit 块，处理嵌套的 config sla 块
+                    const editBlocks = [];
+                    let editStart = -1;
+                    let editBraceCount = 0;
+                    let inEdit = false;
+
+                    for (let i = 0; i < serviceBlock.length; i++) {
+                        const token = serviceBlock.substring(i, i + 6);
+                        const token4 = serviceBlock.substring(i, i + 4);
+                        const token3 = serviceBlock.substring(i, i + 3);
+
+                        if (token === 'edit   ' || (token.startsWith('edit ') && /\d/.test(serviceBlock[i + 5]))) {
+                            if (!inEdit) {
+                                editStart = i;
+                                inEdit = true;
+                                editBraceCount = 0;
+                            }
+                        }
+
+                        if (inEdit) {
+                            if (token === 'config' && (i === editStart || /\s/.test(serviceBlock[i-1]))) {
+                                editBraceCount++;
+                            } else if (token3 === 'end' && /\s/.test(serviceBlock[i-1])) {
+                                editBraceCount--;
+                            } else if (token4 === 'next' && editBraceCount === 0 && /\s/.test(serviceBlock[i-1])) {
+                                const blockEnd = i + 4;
+                                editBlocks.push(serviceBlock.substring(editStart, blockEnd));
+                                inEdit = false;
+                            }
+                        }
+                    }
+
+                    for (const fullContent of editBlocks) {
+                        const serviceIdMatch = fullContent.match(/edit\s+(\d+)/);
+                        if (!serviceIdMatch) continue;
+                        const serviceId = serviceIdMatch[1];
 
                         const nameMatch = fullContent.match(/set\s+name\s+"([^"]+)"/);
-                        const dstMatch = fullContent.match(/set\s+dst\s+"([^"]+)"/);
-                        const srcMatch = fullContent.match(/set\s+src\s+"([^"]+)"/);
+                        const dstMatches = fullContent.match(/set\s+dst\s+("[^"]+"\s*)+/g);
+                        const srcMatches = fullContent.match(/set\s+src\s+("[^"]+"\s*)+/g);
                         const healthCheckMatch = fullContent.match(/set\s+health-check\s+"([^"]+)"/);
                         const priorityMembersMatch = fullContent.match(/set\s+priority-members\s+([\d\s]+)/);
                         const modeMatch = fullContent.match(/set\s+mode\s+(\w+)/);
+
+                        let dst = null;
+                        if (dstMatches) {
+                            const dsts = [];
+                            for (const match of dstMatches) {
+                                const dstNames = match.match(/"([^"]+)"/g);
+                                if (dstNames) {
+                                    dsts.push(...dstNames.map(s => s.replace(/"/g, '')));
+                                }
+                            }
+                            dst = dsts.join(', ');
+                        }
+
+                        let src = null;
+                        if (srcMatches) {
+                            const srcs = [];
+                            for (const match of srcMatches) {
+                                const srcNames = match.match(/"([^"]+)"/g);
+                                if (srcNames) {
+                                    srcs.push(...srcNames.map(s => s.replace(/"/g, '')));
+                                }
+                            }
+                            src = srcs.join(', ');
+                        }
+
+                        let healthCheck = healthCheckMatch ? healthCheckMatch[1] : null;
+
+                        const slaBlockMatch = fullContent.match(/config\s+sla([\s\S]*?)end/i);
+                        if (slaBlockMatch) {
+                            const slaContent = slaBlockMatch[1];
+                            const slaEditRegex = /edit\s+"([^"]+)"/g;
+                            let slaEditMatch;
+                            const healthChecks = [];
+                            while ((slaEditMatch = slaEditRegex.exec(slaContent)) !== null) {
+                                healthChecks.push(slaEditMatch[1]);
+                            }
+                            if (healthChecks.length > 0) {
+                                healthCheck = healthChecks.join(', ');
+                            }
+                        }
+
+                        let priorityMembers = null;
+                        if (priorityMembersMatch) {
+                            priorityMembers = priorityMembersMatch[1].replace(/\s+/g, ' ').trim();
+                        }
 
                         sdwanData.services.push({
                             id: serviceId,
                             vdom: vdom,
                             name: nameMatch ? nameMatch[1] : null,
-                            dst: dstMatch ? dstMatch[1] : null,
-                            src: srcMatch ? srcMatch[1] : null,
-                            healthCheck: healthCheckMatch ? healthCheckMatch[1] : null,
-                            priorityMembers: priorityMembersMatch ? priorityMembersMatch[1].trim() : null,
+                            dst: dst,
+                            src: src,
+                            healthCheck: healthCheck,
+                            priorityMembers: priorityMembers,
                             mode: modeMatch ? modeMatch[1] : null
                         });
                     }
@@ -5418,7 +5526,7 @@
                     html += '<tbody>';
 
                     for (const svc of servicesByVdom[vdom]) {
-                        const priorityInterface = svc.priorityMembers ? memberMap[svc.priorityMembers] || `成员${svc.priorityMembers}` : '-';
+                        const priorityInterfaces = svc.priorityMembers ? svc.priorityMembers.split(' ').map(id => memberMap[id] || `成员${id}`).join(', ') : '-';
 
                         html += '<tr>';
                         html += `<td>${escapeHtml(svc.id)}</td>`;
@@ -5426,7 +5534,7 @@
                         html += `<td>${escapeHtml(svc.src || '-')}</td>`;
                         html += `<td>${escapeHtml(svc.dst || '-')}</td>`;
                         html += `<td>${svc.healthCheck ? `<span class="health-check-name">${escapeHtml(svc.healthCheck)}</span>` : '-'}</td>`;
-                        html += `<td><span class="interface-name">${escapeHtml(priorityInterface)}</span></td>`;
+                        html += `<td><span class="interface-name">${escapeHtml(priorityInterfaces)}</span></td>`;
                         html += `<td>${escapeHtml(svc.mode || '默认')}</td>`;
                         html += '</tr>';
                     }
