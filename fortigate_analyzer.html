@@ -1561,6 +1561,7 @@
                                 subnet: extractSetting(lines, 'set subnet'),
                                 alias: extractSetting(lines, 'set alias'),
                                 description: extractSetting(lines, 'set description'),
+                                mode: extractSetting(lines, 'set mode'),
                                 referencedBy: [],
                                 parent: extractParentInterface(name, lines),
                                 vlanid: extractSetting(lines, 'set vlanid'),
@@ -5841,7 +5842,7 @@
             const usedPhase2Interfaces = {};
             
             for (const [name, iface] of Object.entries(interfaces)) {
-                if (iface.referencedBy.length > 0) {
+                if (iface.referencedBy.length > 0 || (iface.type === 'physical' && (iface.ip || iface.mode === 'dhcp'))) {
                     usedInterfaces[name] = iface;
                 }
             }
@@ -5953,6 +5954,7 @@
             html += '.tag-member { background: rgba(112, 173, 71, 0.2); color: #527a33; border: 1px solid rgba(112, 173, 71, 0.4); }';
             html += '.tag-proposal { background: rgba(155, 89, 182, 0.2); color: #6c3483; border: 1px solid rgba(155, 89, 182, 0.4); }';
             html += '.tag-remote { background: rgba(192, 0, 0, 0.2); color: #8b0000; border: 1px solid rgba(192, 0, 0, 0.4); }';
+            html += '.tag-mode { background: rgba(255, 192, 0, 0.2); color: #b8860b; border: 1px solid rgba(255, 192, 0, 0.4); }';
             html += '.interface-icon { font-size: 18px; }';
             html += '.child-list { list-style: none; padding-left: 0; margin-top: 4px; }';
             html += '.child-list li { padding-left: 30px; }';
@@ -5980,6 +5982,9 @@
                 html += `<span class="tag ${getVdomClass(iface.vdom)}">[${escapeHtml(iface.vdom)}]</span>`;
                 if (iface.ip) {
                     html += `<span class="tag tag-ip">${escapeHtml(iface.ip)}</span>`;
+                }
+                if (iface.mode) {
+                    html += `<span class="tag tag-mode">模式: ${escapeHtml(iface.mode)}</span>`;
                 }
                 if (!isPhysical && iface.members && iface.members.length > 0) {
                     html += `<span class="tag tag-member">成员: ${escapeHtml(iface.members.join(', '))}</span>`;
