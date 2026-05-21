@@ -777,7 +777,7 @@
                     <h2>📖 使用说明</h2>
                     <span class="help-close-btn" onclick="closeHelp()">&times;</span>
                 </div>
-
+                
                 <div class="help-section">
                     <h3>📂 上传配置文件</h3>
                     <ul>
@@ -785,45 +785,24 @@
                         <li>系统会自动解析配置文件并展示各项分析结果</li>
                     </ul>
                 </div>
-
+                
                 <div class="help-section">
                     <h3>📋 分析模块说明</h3>
                     <ul>
-                        <li><strong>接口分析</strong>：展示物理接口、聚合接口、子接口、隧道接口的层级关系，包含IPsec Phase1/Phase2关联信息</li>
-                        <li><strong>静态路由分析</strong>：展示所有静态路由配置，同类型路由按网段和掩码自动排序</li>
+                        <li><strong>配置基线一览表</strong>：展示设备基本信息、系统设置、网络接口等核心配置</li>
+                        <li><strong>安全域配置分析</strong>：展示安全区域定义及成员接口关联</li>
+                        <li><strong>防火墙策略分析</strong>：展示所有防火墙策略规则，支持按列头筛选，多地址/服务换行显示</li>
+                        <li><strong>接口分析</strong>：展示物理接口、聚合接口、子接口、隧道接口及 IPsec VPN 关联关系</li>
                         <li><strong>BGP 配置分析</strong>：展示 BGP 邻居配置、Community-List、Route-Map、Prefix-List</li>
-                        <li><strong>SD-WAN 配置分析</strong>：展示 SD-WAN 成员接口、健康检查规则和服务策略</li>
-                        <li><strong>GRE 隧道配置分析</strong>：展示 GRE 隧道信息，包括物理接口、内外层IP地址</li>
-                        <li><strong>IPSec 配置分析</strong>：展示 IPSec Phase1 和 Phase2 配置及其关联关系</li>
-                        <li><strong>防火墙策略分析</strong>：展示所有防火墙策略规则，支持多地址对象解析和列头过滤筛选</li>
-                        <li><strong>防火墙 VIP 配置分析</strong>：展示虚拟IP (VIP) 和 VIP 组配置</li>
+                        <li><strong>静态路由分析</strong>：展示静态路由配置，按网段和掩码排序</li>
+                        <li><strong>GRE 隧道配置分析</strong>：展示 GRE 隧道配置，关联内层 tunnel 接口信息</li>
+                        <li><strong>IPsec VPN 分析</strong>：展示 IPsec Phase1/Phase2 配置及关联隧道接口</li>
+                        <li><strong>SD-WAN 配置分析</strong>：展示 SD-WAN 成员、健康检查和服务规则配置</li>
                         <li><strong>Web过滤配置分析</strong>：展示 URL过滤规则和 Profile 配置</li>
                         <li><strong>流量整形分析</strong>：展示流量整形器和整形策略配置</li>
-                        <li><strong>配置基线一览表</strong>：展示设备基本信息、系统设置、DNS、SNMP等核心配置</li>
                     </ul>
                 </div>
-
-                <div class="help-section">
-                    <h3>🔍 防火墙策略过滤功能</h3>
-                    <ul>
-                        <li>在防火墙策略表格的列头下方有筛选输入框</li>
-                        <li>支持模糊匹配，可输入关键词快速定位策略</li>
-                        <li>不区分大小写，实时响应输入</li>
-                        <li>支持筛选的字段：策略ID、源/目的接口、源/目的地址、服务等</li>
-                    </ul>
-                </div>
-
-                <div class="help-section">
-                    <h3>🔗 接口层级关系</h3>
-                    <ul>
-                        <li><strong>第一层</strong>：物理接口、聚合接口</li>
-                        <li><strong>第二层</strong>：挂在物理/聚合接口下的隧道接口、子接口、IPSec Phase1</li>
-                        <li><strong>第三层</strong>：IPSec Phase2（挂在Phase1下）</li>
-                        <li><strong>第四层</strong>：隧道接口（挂在Phase2下）</li>
-                        <li>只显示被其他配置引用的接口（未使用的接口不显示）</li>
-                    </ul>
-                </div>
-
+                
                 <div class="help-section">
                     <h3>🎨 界面交互</h3>
                     <ul>
@@ -831,16 +810,32 @@
                         <li>右下角 ⚙️ 按钮可调整字体大小、表格配色和主题</li>
                         <li>右下角 📋 按钮可一键折叠所有展开的模块</li>
                         <li>支持浅色/暗黑主题切换</li>
+                        <li>防火墙策略表格支持按列头输入关键词实时筛选</li>
                     </ul>
                 </div>
-
+                
                 <div class="help-section">
                     <h3>⚠️ 注意事项</h3>
                     <ul>
                         <li>建议使用完整的 FortiGate 配置文件进行分析</li>
                         <li>部分配置可能因设备型号或软件版本差异而无法完全解析</li>
                         <li>未识别的配置内容会显示在"未识别的配置内容"区域</li>
-                        <li>防火墙策略和接口中的多值对象（如多个地址）会自动换行显示</li>
+                        <li>重新选择文件时会自动清空上次解析结果</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
+                    <h3>📝 版本更新记录</h3>
+                    <ul>
+                        <li><strong>v1.0.8 (2026-05-21)</strong>：添加文件切换时自动清空上次解析结果功能</li>
+                        <li><strong>v1.0.7 (2026-05-21)</strong>：修复物理接口下子接口/隧道接口不显示的问题</li>
+                        <li><strong>v1.0.6 (2026-05-21)</strong>：添加 GRE 隧道配置分析模块，联合解析外层和内层配置</li>
+                        <li><strong>v1.0.5 (2026-05-20)</strong>：添加防火墙策略表格列头过滤筛选功能</li>
+                        <li><strong>v1.0.4 (2026-05-20)</strong>：修复多地址/服务字段换行显示功能</li>
+                        <li><strong>v1.0.3 (2026-05-19)</strong>：修复 SD-WAN 服务规则健康对象和出接口解析问题</li>
+                        <li><strong>v1.0.2 (2026-05-19)</strong>：修复变量重复声明错误</li>
+                        <li><strong>v1.0.1 (2026-05-18)</strong>：实现静态路由按网段和掩码排序功能</li>
+                        <li><strong>v1.0.0 (2026-05-15)</strong>：初始版本，支持基本配置分析功能</li>
                     </ul>
                 </div>
             </div>
@@ -1047,11 +1042,43 @@
             }
         }
 
+        function clearPreviousResults() {
+            const containers = [
+                'interfaceAnalysisContainer',
+                'bgpAnalysisContainer',
+                'staticRoutesContainer',
+                'sdwanContainer',
+                'greContainer',
+                'ipsecContainer',
+                'firewallPolicyContainer',
+                'firewallVipContainer',
+                'webfilterContainer',
+                'baselineContainer',
+                'shaperContainer',
+                'unrecognizedSection'
+            ];
+            
+            containers.forEach(id => {
+                const container = document.getElementById(id);
+                if (container) {
+                    container.innerHTML = '';
+                    container.classList.add('hidden');
+                }
+            });
+            
+            window.allModulesData = null;
+            window.vdomsData = null;
+            window.interfaceData = null;
+            window.greData = null;
+        }
+
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             debugLog(`File selected: ${file.name} (${file.size} bytes)`, 'info');
+            
+            clearPreviousResults();
             
             originalFileName = file.name;
             fileName.textContent = `Selected: ${file.name}`;
@@ -5852,6 +5879,17 @@
                 }
             }
             
+            const tunnelNamesInPhase2 = new Set();
+            for (const [phase1Name, phase1] of Object.entries(phase1Interfaces)) {
+                for (const [phase2Name, phase2] of Object.entries(phase2Interfaces)) {
+                    if (phase2.phase1Name === phase1.name) {
+                        if (tunnelIfaces[phase1.name]) {
+                            tunnelNamesInPhase2.add(phase1.name);
+                        }
+                    }
+                }
+            }
+            
             let html = '<div class="analysis-section">';
             html += '<div class="analysis-header" onclick="toggleSection(this)">';
             html += '<span class="analysis-icon">🔗</span>';
@@ -5923,10 +5961,7 @@
             html += '</style>';
             
             html += '<ul class="interface-tree">';
-
-            // 跟踪已渲染的 tunnel 接口，避免重复显示
-            const renderedTunnels = new Set();
-
+            
             const allLevel1 = {};
             for (const [name, iface] of Object.entries(physicalIfaces)) {
                 allLevel1[name] = { ...iface, category: 'physical' };
@@ -5949,55 +5984,14 @@
                     html += `<span class="tag tag-member">成员: ${escapeHtml(iface.members.join(', '))}</span>`;
                 }
                 html += `</div>`;
-
-                // 渲染物理和聚合接口的 tunnel 子接口
-                const level2Children = [];
-                for (const [subName, subIface] of Object.entries(subIfaces)) {
-                    if (subIface.parent === name) {
-                        level2Children.push({ name: subName, iface: subIface, type: 'subinterface' });
-                    }
-                }
-
-                for (const [tunName, tunIface] of Object.entries(tunnelIfaces)) {
-                    if (tunIface.parent === name && !renderedTunnels.has(tunName)) {
-                        level2Children.push({ name: tunName, iface: tunIface, type: 'tunnel' });
-                    }
-                }
-
-                if (level2Children.length > 0) {
-                    html += `<ul class="child-list">`;
-                    for (const child of level2Children) {
-                        if (child.type === 'tunnel') {
-                            renderedTunnels.add(child.name);
-                        }
-                        html += `<li>`;
-                        const childIcon = child.type === 'tunnel' ? '🛤️' : '📦';
-                        html += `<div class="interface-node ${child.type} ${getVdomClass(child.iface.vdom)}">`;
-                        html += `<span class="interface-icon">${childIcon}</span>`;
-                        html += `<span class="tag tag-name tag-name-${child.type}">${escapeHtml(child.name)}</span>`;
-                        html += `<span class="tag ${getVdomClass(child.iface.vdom)}">[${escapeHtml(child.iface.vdom)}]</span>`;
-                        if (child.iface.ip) {
-                            html += `<span class="tag tag-ip">${escapeHtml(child.iface.ip)}</span>`;
-                        }
-                        if (child.iface.remoteIp) {
-                            html += `<span class="tag tag-remote">远程: ${escapeHtml(child.iface.remoteIp)}</span>`;
-                        }
-                        if (child.iface.vlanid) {
-                            html += `<span class="tag tag-vlan">VLAN: ${escapeHtml(child.iface.vlanid)}</span>`;
-                        }
-                        html += `</div>`;
-                        html += `</li>`;
-                    }
-                    html += `</ul>`;
-                }
-
+                
                 const phase1List = [];
                 for (const [phase1Name, phase1] of Object.entries(phase1Interfaces)) {
                     if (phase1.interface === name) {
                         phase1List.push(phase1);
                     }
                 }
-
+                
                 if (phase1List.length > 0) {
                     html += `<ul class="child-list">`;
                     for (const phase1 of phase1List) {
@@ -6036,15 +6030,14 @@
                                 
                                 const tunnelList = [];
                                 for (const [tunName, tunIface] of Object.entries(tunnelIfaces)) {
-                                    if (tunName === phase1.name && !renderedTunnels.has(tunName)) {
+                                    if (tunName === phase1.name) {
                                         tunnelList.push({ name: tunName, iface: tunIface });
                                     }
                                 }
-
+                                
                                 if (tunnelList.length > 0) {
                                     html += `<ul class="child-list">`;
                                     for (const tun of tunnelList) {
-                                        renderedTunnels.add(tun.name);
                                         html += `<li>`;
                                         html += `<div class="interface-node tunnel ${getVdomClass(tun.iface.vdom)}">`;
                                         html += `<span class="interface-icon">🛤️</span>`;
@@ -6061,20 +6054,137 @@
                                     }
                                     html += `</ul>`;
                                 }
-
+                                
                                 html += `</li>`;
                             }
                             html += `</ul>`;
                         }
-
+                        
                         html += `</li>`;
                     }
                     html += `</ul>`;
                 }
-
+                
+                const level2Children = [];
+                for (const [subName, subIface] of Object.entries(subIfaces)) {
+                    if (subIface.parent === name) {
+                        level2Children.push({ name: subName, iface: subIface, type: 'subinterface' });
+                    }
+                }
+                
+                for (const [tunName, tunIface] of Object.entries(tunnelIfaces)) {
+                    if (tunIface.parent === name && !tunIface.parent.includes('.') && !tunnelNamesInPhase2.has(tunName)) {
+                        level2Children.push({ name: tunName, iface: tunIface, type: 'tunnel' });
+                    }
+                }
+                
+                if (level2Children.length > 0) {
+                    html += `<ul class="child-list">`;
+                    for (const child of level2Children) {
+                        html += `<li>`;
+                        const childIcon = child.type === 'tunnel' ? '🛤️' : '📦';
+                        html += `<div class="interface-node ${child.type} ${getVdomClass(child.iface.vdom)}">`;
+                        html += `<span class="interface-icon">${childIcon}</span>`;
+                        html += `<span class="tag tag-name tag-name-${child.type}">${escapeHtml(child.name)}</span>`;
+                        html += `<span class="tag ${getVdomClass(child.iface.vdom)}">[${escapeHtml(child.iface.vdom)}]</span>`;
+                        if (child.iface.ip) {
+                            html += `<span class="tag tag-ip">${escapeHtml(child.iface.ip)}</span>`;
+                        }
+                        if (child.iface.vlanid) {
+                                html += `<span class="tag tag-vlan">VLAN: ${escapeHtml(child.iface.vlanid)}</span>`;
+                            }
+                            html += `</div>`;
+                            
+                            if (child.type === 'subinterface') {
+                                const childPhase1List = [];
+                                for (const [phase1Name, phase1] of Object.entries(phase1Interfaces)) {
+                                    if (phase1.interface === child.name) {
+                                        childPhase1List.push(phase1);
+                                    }
+                                }
+                                
+                                if (childPhase1List.length > 0) {
+                                    html += `<ul class="child-list">`;
+                                    for (const phase1 of childPhase1List) {
+                                        html += `<li>`;
+                                        html += `<div class="interface-node phase1 ${getVdomClass(phase1.vdom)}">`;
+                                        html += `<span class="interface-icon">🌐</span>`;
+                                        html += `<span class="tag tag-name tag-name-phase1">${escapeHtml(phase1.name)}</span>`;
+                                        html += `<span class="tag ${getVdomClass(phase1.vdom)}">[${escapeHtml(phase1.vdom)}]</span>`;
+                                            if (phase1.proposal) {
+                                                html += `<span class="tag tag-proposal">提议: ${escapeHtml(phase1.proposal)}</span>`;
+                                            }
+                                            if (phase1.remoteGateway) {
+                                                html += `<span class="tag tag-gateway">对端: ${escapeHtml(phase1.remoteGateway)}</span>`;
+                                            }
+                                        html += `</div>`;
+                                        
+                                        const childPhase2List = [];
+                                        for (const [phase2Name, phase2] of Object.entries(phase2Interfaces)) {
+                                            if (phase2.phase1Name === phase1.name) {
+                                                childPhase2List.push(phase2);
+                                            }
+                                        }
+                                        
+                                        if (childPhase2List.length > 0) {
+                                            html += `<ul class="child-list">`;
+                                            for (const phase2 of childPhase2List) {
+                                                html += `<li>`;
+                                                html += `<div class="interface-node phase2 ${getVdomClass(phase2.vdom)}">`;
+                                                html += `<span class="interface-icon">🔒</span>`;
+                                                html += `<span class="tag tag-name tag-name-phase2">${escapeHtml(phase2.name)}</span>`;
+                                                html += `<span class="tag ${getVdomClass(phase2.vdom)}">[${escapeHtml(phase2.vdom)}]</span>`;
+                                                        if (phase2.proposal) {
+                                                            html += `<span class="tag tag-proposal">提议: ${escapeHtml(phase2.proposal)}</span>`;
+                                                        }
+                                                html += `</div>`;
+                                                
+                                                const childTunnelList = [];
+                                                for (const [tunName, tunIface] of Object.entries(tunnelIfaces)) {
+                                                    if (tunName === phase1.name) {
+                                                        childTunnelList.push({ name: tunName, iface: tunIface });
+                                                    }
+                                                }
+                                                
+                                                if (childTunnelList.length > 0) {
+                                                    html += `<ul class="child-list">`;
+                                                    for (const tun of childTunnelList) {
+                                                        html += `<li>`;
+                                                        html += `<div class="interface-node tunnel ${getVdomClass(tun.iface.vdom)}">`;
+                                                        html += `<span class="interface-icon">🛤️</span>`;
+                                                        html += `<span class="tag tag-name tag-name-tunnel">${escapeHtml(tun.name)}</span>`;
+                                                        html += `<span class="tag ${getVdomClass(tun.iface.vdom)}">[${escapeHtml(tun.iface.vdom)}]</span>`;
+                                                                if (tun.iface.ip) {
+                                                                    html += `<span class="tag tag-ip">${escapeHtml(tun.iface.ip)}</span>`;
+                                                                }
+                                                                if (tun.iface.remoteIp) {
+                                                                    html += `<span class="tag tag-remote">远程: ${escapeHtml(tun.iface.remoteIp)}</span>`;
+                                                                }
+                                                        html += `</div>`;
+                                                        html += `</li>`;
+                                                    }
+                                                    html += `</ul>`;
+                                                }
+                                                
+                                                html += `</li>`;
+                                            }
+                                            html += `</ul>`;
+                                        }
+                                        
+                                        html += `</li>`;
+                                    }
+                                    html += `</ul>`;
+                                }
+                            }
+                            
+                            html += `</li>`;
+                        }
+                        html += `</ul>`;
+                    }
+                
                 html += `</li>`;
             }
-
+            
             for (const [name, iface] of Object.entries(subIfaces)) {
                 if (!iface.parent || !allLevel1[iface.parent]) {
                     html += `<li>`;
@@ -6172,19 +6282,18 @@
                     
                     const children = [];
                     for (const [tunName, tunIface] of Object.entries(tunnelIfaces)) {
-                        if (tunIface.parent === name && !renderedTunnels.has(tunName)) {
+                        if (tunIface.parent === name && !tunnelNamesInPhase2.has(tunName)) {
                             children.push({ name: tunName, iface: tunIface });
                         }
                     }
-
+                    
                     if (children.length > 0) {
                         html += `<ul class="child-list">`;
                         for (const child of children) {
-                            renderedTunnels.add(child.name);
                             html += `<li>`;
                             html += `<div class="interface-node tunnel ${getVdomClass(child.iface.vdom)}">`;
                             html += `<span class="interface-icon">🛤️</span>`;
-                            html += `<span class="tag tag-name tag-name-tunnel">${escapeHtml(child.name)}</span>`;
+                            html += `<span class="tag tag-name tag-name-${child.type}">${escapeHtml(child.name)}</span>`;
                             html += `<span class="tag ${getVdomClass(child.iface.vdom)}">[${escapeHtml(child.iface.vdom)}]</span>`;
                                 if (child.iface.ip) {
                                     html += `<span class="tag tag-ip">${escapeHtml(child.iface.ip)}</span>`;
@@ -6197,17 +6306,14 @@
                         }
                         html += `</ul>`;
                     }
-
+                    
                     html += `</li>`;
                 }
             }
-
+            
             for (const [name, iface] of Object.entries(tunnelIfaces)) {
-                if (renderedTunnels.has(name)) {
-                    continue; // 跳过已渲染的 tunnel
-                }
                 const parentExists = iface.parent && (allLevel1[iface.parent] || subIfaces[iface.parent]);
-                if (!iface.parent || !parentExists) {
+                if ((!iface.parent || !parentExists) && !tunnelNamesInPhase2.has(name)) {
                     html += `<li>`;
                     html += `<div class="interface-node tunnel ${getVdomClass(iface.vdom)}">`;
                     html += `<span class="interface-icon">🛤️</span>`;
