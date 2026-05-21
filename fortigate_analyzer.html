@@ -827,6 +827,7 @@
                 <div class="help-section">
                     <h3>📝 版本更新记录</h3>
                     <ul>
+                        <li><strong>v1.0.9 (2026-05-21)</strong>：修复导出HTML后防火墙策略过滤功能无法使用的问题</li>
                         <li><strong>v1.0.8 (2026-05-21)</strong>：添加文件切换时自动清空上次解析结果功能</li>
                         <li><strong>v1.0.7 (2026-05-21)</strong>：修复物理接口下子接口/隧道接口不显示的问题</li>
                         <li><strong>v1.0.6 (2026-05-21)</strong>：添加 GRE 隧道配置分析模块，联合解析外层和内层配置</li>
@@ -6683,12 +6684,15 @@
             const allModulesDataStr = JSON.stringify(window.allModulesData || {});
             const vdomsDataStr = JSON.stringify(window.vdomsData || []);
             
-            // 创建初始化脚本，将数据直接赋值给全局变量
+            // 创建初始化脚本，将数据直接赋值给全局变量，并初始化过滤功能
             const script = 
                 '(function() {' +
                 'window.allModulesData = ' + allModulesDataStr + ';' +
                 'window.vdomsData = ' + vdomsDataStr + ';' +
                 'console.log("Data initialized:", Object.keys(window.allModulesData).length + " modules");' +
+                'document.addEventListener("DOMContentLoaded", function() {' +
+                'setupFilterInputs();' +
+                '});' +
                 '})();';
             
             return script;
