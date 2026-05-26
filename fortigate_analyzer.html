@@ -5545,8 +5545,32 @@
                                 const trafficShaperMatch = policyContent.match(/set\s+traffic-shaper\s+["']([^"']+)["']/i);
                                 const trafficShaperRevMatch = policyContent.match(/set\s+traffic-shaper-reverse\s+["']([^"']+)["']/i);
                                 const perIpShaperMatch = policyContent.match(/set\s+per-ip-shaper\s+["']([^"']+)["']/i);
-                                const srcaddrMatch = policyContent.match(/set\s+srcaddr\s+["']([^"']+)["']/i);
-                                const dstaddrMatch = policyContent.match(/set\s+dstaddr\s+["']([^"']+)["']/i);
+                                const actionMatch = policyContent.match(/set\s+action\s+["']([^"']+)["']/i);
+                                const scheduleMatch = policyContent.match(/set\s+schedule\s+["']([^"']+)["']/i);
+                                const statusMatch = policyContent.match(/set\s+status\s+disable/i);
+                                
+                                const srcaddrMatches = policyContent.match(/set\s+srcaddr\s+(.*)$/im);
+                                const dstaddrMatches = policyContent.match(/set\s+dstaddr\s+(.*)$/im);
+                                
+                                let srcaddrList = [];
+                                if (srcaddrMatches) {
+                                    const addrStr = srcaddrMatches[1];
+                                    const addrRegex = /["']([^"']+)["']/g;
+                                    let match;
+                                    while ((match = addrRegex.exec(addrStr)) !== null) {
+                                        srcaddrList.push(match[1]);
+                                    }
+                                }
+                                
+                                let dstaddrList = [];
+                                if (dstaddrMatches) {
+                                    const addrStr = dstaddrMatches[1];
+                                    const addrRegex = /["']([^"']+)["']/g;
+                                    let match;
+                                    while ((match = addrRegex.exec(addrStr)) !== null) {
+                                        dstaddrList.push(match[1]);
+                                    }
+                                }
                                 
                                 shapingPolicies.push({
                                     vdom: vdom,
@@ -5558,8 +5582,11 @@
                                     trafficShaper: trafficShaperMatch ? trafficShaperMatch[1] : null,
                                     trafficShaperReverse: trafficShaperRevMatch ? trafficShaperRevMatch[1] : null,
                                     perIpShaper: perIpShaperMatch ? perIpShaperMatch[1] : null,
-                                    srcaddr: srcaddrMatch ? srcaddrMatch[1] : null,
-                                    dstaddr: dstaddrMatch ? dstaddrMatch[1] : null
+                                    action: actionMatch ? actionMatch[1] : null,
+                                    schedule: scheduleMatch ? scheduleMatch[1] : null,
+                                    status: statusMatch ? '禁用' : '启用',
+                                    srcaddr: srcaddrList,
+                                    dstaddr: dstaddrList
                                 });
                             }
                             inEdit = true;
@@ -5577,8 +5604,32 @@
                                 const trafficShaperMatch = policyContent.match(/set\s+traffic-shaper\s+["']([^"']+)["']/i);
                                 const trafficShaperRevMatch = policyContent.match(/set\s+traffic-shaper-reverse\s+["']([^"']+)["']/i);
                                 const perIpShaperMatch = policyContent.match(/set\s+per-ip-shaper\s+["']([^"']+)["']/i);
-                                const srcaddrMatch = policyContent.match(/set\s+srcaddr\s+["']([^"']+)["']/i);
-                                const dstaddrMatch = policyContent.match(/set\s+dstaddr\s+["']([^"']+)["']/i);
+                                const actionMatch = policyContent.match(/set\s+action\s+["']([^"']+)["']/i);
+                                const scheduleMatch = policyContent.match(/set\s+schedule\s+["']([^"']+)["']/i);
+                                const statusMatch = policyContent.match(/set\s+status\s+disable/i);
+                                
+                                const srcaddrMatches = policyContent.match(/set\s+srcaddr\s+(.*)$/im);
+                                const dstaddrMatches = policyContent.match(/set\s+dstaddr\s+(.*)$/im);
+                                
+                                let srcaddrList = [];
+                                if (srcaddrMatches) {
+                                    const addrStr = srcaddrMatches[1];
+                                    const addrRegex = /["']([^"']+)["']/g;
+                                    let match;
+                                    while ((match = addrRegex.exec(addrStr)) !== null) {
+                                        srcaddrList.push(match[1]);
+                                    }
+                                }
+                                
+                                let dstaddrList = [];
+                                if (dstaddrMatches) {
+                                    const addrStr = dstaddrMatches[1];
+                                    const addrRegex = /["']([^"']+)["']/g;
+                                    let match;
+                                    while ((match = addrRegex.exec(addrStr)) !== null) {
+                                        dstaddrList.push(match[1]);
+                                    }
+                                }
                                 
                                 shapingPolicies.push({
                                     vdom: vdom,
@@ -5590,8 +5641,11 @@
                                     trafficShaper: trafficShaperMatch ? trafficShaperMatch[1] : null,
                                     trafficShaperReverse: trafficShaperRevMatch ? trafficShaperRevMatch[1] : null,
                                     perIpShaper: perIpShaperMatch ? perIpShaperMatch[1] : null,
-                                    srcaddr: srcaddrMatch ? srcaddrMatch[1] : null,
-                                    dstaddr: dstaddrMatch ? dstaddrMatch[1] : null
+                                    action: actionMatch ? actionMatch[1] : null,
+                                    schedule: scheduleMatch ? scheduleMatch[1] : null,
+                                    status: statusMatch ? '禁用' : '启用',
+                                    srcaddr: srcaddrList,
+                                    dstaddr: dstaddrList
                                 });
                                 
                                 inEdit = false;
@@ -5639,6 +5693,7 @@
             html += '.shaper-badge.low { background: rgba(242, 83, 83, 0.15); color: #F25353; }';
             html += '.shaper-name { font-family: Verdana, sans-serif; color: var(--header-bg); font-weight: bold; }';
             html += '.shaper-ref { font-family: Verdana, sans-serif; font-weight: bold; color: #F79646; }';
+            html += '.disabled-row { background: rgba(255, 192, 192, 0.3) !important; }';
             html += '</style>';
 
             // Traffic Shaper Table
@@ -5719,13 +5774,17 @@
                 html += '<thead>';
                 html += '<tr>';
                 html += '<th>ID</th>';
-                html += '<th>策略名称</th>';
-                html += '<th>VDOM</th>';
-                html += '<th>源接口</th>';
+                html += '<th>名称</th>';
+                html += '<th>源地址</th>';
+                html += '<th>目的地址</th>';
                 html += '<th>目的接口</th>';
-                html += '<th>流量整形器</th>';
+                html += '<th>动作</th>';
+                html += '<th>共享流量控制</th>';
                 html += '<th>反向整形器</th>';
-                html += '<th>每IP整形</th>';
+                html += '<th>每IP流量整形器</th>';
+                html += '<th>服务</th>';
+                html += '<th>时间</th>';
+                html += '<th>状态</th>';
                 html += '</tr>';
                 html += '</thead>';
                 html += '<tbody>';
@@ -5742,16 +5801,29 @@
                     const perIpRef = policy.perIpShaper && perIpShapers[policy.perIpShaper]
                         ? `<span class="shaper-badge perip">${escapeHtml(policy.perIpShaper)}</span>`
                         : (policy.perIpShaper ? escapeHtml(policy.perIpShaper) : '-');
+                    
+                    const srcaddrHtml = policy.srcaddr && policy.srcaddr.length > 0 
+                        ? policy.srcaddr.map(addr => escapeHtml(addr)).join('<br>')
+                        : '-';
+                    
+                    const dstaddrHtml = policy.dstaddr && policy.dstaddr.length > 0 
+                        ? policy.dstaddr.map(addr => escapeHtml(addr)).join('<br>')
+                        : '-';
 
-                    html += '<tr>';
+                    const rowClass = policy.status === '禁用' ? 'disabled-row' : '';
+                    html += `<tr class="${rowClass}">`;
                     html += `<td>${escapeHtml(policy.id)}</td>`;
                     html += `<td>${policy.name ? escapeHtml(policy.name) : '-'}</td>`;
-                    html += `<td><span class="shaper-badge vdom">${escapeHtml(policy.vdom)}</span></td>`;
-                    html += `<td>${policy.srcintf ? escapeHtml(policy.srcintf) : '-'}</td>`;
+                    html += `<td>${srcaddrHtml}</td>`;
+                    html += `<td>${dstaddrHtml}</td>`;
                     html += `<td>${policy.dstintf ? escapeHtml(policy.dstintf) : '-'}</td>`;
+                    html += `<td>${policy.action ? escapeHtml(policy.action) : '-'}</td>`;
                     html += `<td>${tsRef}</td>`;
                     html += `<td>${tsRevRef}</td>`;
                     html += `<td>${perIpRef}</td>`;
+                    html += `<td>${policy.service ? escapeHtml(policy.service) : '-'}</td>`;
+                    html += `<td>${policy.schedule ? escapeHtml(policy.schedule) : '-'}</td>`;
+                    html += `<td>${policy.status ? escapeHtml(policy.status) : '-'}</td>`;
                     html += '</tr>';
                 }
 
