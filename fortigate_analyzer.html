@@ -798,7 +798,7 @@
                         <li><strong>GRE 隧道配置分析</strong>：展示 GRE 隧道配置，关联内层 tunnel 接口信息</li>
                         <li><strong>IPsec VPN 分析</strong>：展示 IPsec Phase1/Phase2 配置及关联隧道接口</li>
                         <li><strong>SD-WAN 配置分析</strong>：展示 SD-WAN 成员、健康检查和服务规则配置</li>
-                        <li><strong>Web过滤配置分析</strong>：展示 URL过滤规则和 Profile 配置</li>
+                        <li><strong>Web过滤配置分析</strong>：展示 URL过滤规则和 Profile 配置，支持：<ul><li>自动去除URL中的正则表达式特殊字符，生成清理后URL</li><li>自动生成通配符域名（如 *.example.com）和基础域名</li><li>列头支持一键复制整列内容</li><li>重复域名自动高亮加粗标识</li><li>去重统计数量显示</li></ul></li>
                         <li><strong>流量整形分析</strong>：展示流量整形器和整形策略配置</li>
                     </ul>
                 </div>
@@ -827,6 +827,7 @@
                 <div class="help-section">
                     <h3>📝 版本更新记录</h3>
                     <ul>
+                        <li><strong>v1.0.10 (2026-05-26)</strong>：增强 Web过滤配置分析模块功能：<ul><li>添加URL正则表达式字符自动清理功能</li><li>自动生成通配符域名和基础域名格式</li><li>列头添加一键复制整列内容按钮</li><li>重复域名自动高亮加粗标识</li><li>通配符域名和基础域名列显示去重统计数量</li></ul></li>
                         <li><strong>v1.0.9 (2026-05-21)</strong>：修复导出HTML后防火墙策略过滤功能无法使用的问题</li>
                         <li><strong>v1.0.8 (2026-05-21)</strong>：添加文件切换时自动清空上次解析结果功能</li>
                         <li><strong>v1.0.7 (2026-05-21)</strong>：修复物理接口下子接口/隧道接口不显示的问题</li>
@@ -3775,13 +3776,68 @@
             };
         }
 
+        function removeRegexChars(url) {
+            if (!url || url === '-') return '-';
+            let cleanedUrl = url;
+            
+            cleanedUrl = cleanedUrl.replace(/\(\?!.*?\)/g, '');
+            cleanedUrl = cleanedUrl.replace(/\[.*?\]/g, '');
+            cleanedUrl = cleanedUrl.replace(/\{.*?\}/g, '');
+            cleanedUrl = cleanedUrl.replace(/\\\./g, '.');
+            cleanedUrl = cleanedUrl.replace(/\(/g, '');
+            cleanedUrl = cleanedUrl.replace(/\)/g, '');
+            cleanedUrl = cleanedUrl.replace(/\^/g, '');
+            cleanedUrl = cleanedUrl.replace(/\$/g, '');
+            cleanedUrl = cleanedUrl.replace(/\*/g, '');
+            cleanedUrl = cleanedUrl.replace(/\+/g, '');
+            cleanedUrl = cleanedUrl.replace(/\?/g, '');
+            cleanedUrl = cleanedUrl.replace(/\|/g, '');
+            cleanedUrl = cleanedUrl.replace(/\\/g, '');
+            cleanedUrl = cleanedUrl.replace(/:/g, '');
+            cleanedUrl = cleanedUrl.replace(/\//g, '');
+            cleanedUrl = cleanedUrl.replace(/\n/g, '');
+            cleanedUrl = cleanedUrl.replace(/\r/g, '');
+            cleanedUrl = cleanedUrl.replace(/\s+/g, '');
+            return cleanedUrl || '-';
+        }
+
+        function convertToDomainFormats(cleanedUrl) {
+            if (!cleanedUrl || cleanedUrl === '-') return { wildcard: '-', base: '-' };
+            
+            let domain = cleanedUrl;
+            domain = domain.replace(/^https?:\/\//, '');
+            domain = domain.replace(/^www\./, '');
+            domain = domain.split('/')[0];
+            domain = domain.split('?')[0];
+            
+            let wildcardDomain = '';
+            let baseDomain = '';
+            
+            if (domain.startsWith('.')) {
+                wildcardDomain = '*' + domain;
+                baseDomain = domain.substring(1);
+            } else {
+                wildcardDomain = '*.' + domain;
+                baseDomain = domain;
+            }
+            
+            return { wildcard: wildcardDomain, base: baseDomain };
+        }
+
         function parseUrlfilterEntry(entryContent) {
             const urlMatch = entryContent.match(/set\s+url\s+["']([^"']+)["']/i);
             const actionMatch = entryContent.match(/set\s+action\s+(\w+)/i);
             const typeMatch = entryContent.match(/set\s+type\s+(\w+)/i);
             
+            const originalUrl = urlMatch ? urlMatch[1] : '-';
+            const cleanedUrl = removeRegexChars(originalUrl);
+            const domainFormats = convertToDomainFormats(cleanedUrl);
+            
             return {
-                url: urlMatch ? urlMatch[1] : '-',
+                url: originalUrl,
+                cleanedUrl: cleanedUrl,
+                wildcardDomain: domainFormats.wildcard,
+                baseDomain: domainFormats.base,
                 action: actionMatch ? actionMatch[1] : '-',
                 type: typeMatch ? typeMatch[1] : 'simple'
             };
@@ -3859,6 +3915,41 @@
             };
         }
 
+        function copyColumnData(ruleId, columnIndex) {
+            const rule = document.getElementById(ruleId);
+            if (!rule) return;
+            
+            const table = rule.querySelector('.analysis-table');
+            if (!table) return;
+            
+            const tbody = table.querySelector('tbody');
+            if (!tbody) return;
+            
+            const rows = tbody.querySelectorAll('tr');
+            const data = [];
+            
+            rows.forEach((row, idx) => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length > columnIndex && cells.length > 1) {
+                    const cellText = cells[columnIndex].textContent.trim();
+                    if (cellText && cellText !== '无条目') {
+                        data.push(cellText);
+                    }
+                }
+            });
+            
+            if (data.length > 0) {
+                navigator.clipboard.writeText(data.join('\n')).then(() => {
+                    alert('已复制 ' + data.length + ' 条数据到剪贴板！');
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动选择复制');
+                });
+            } else {
+                alert('该列没有数据可复制');
+            }
+        }
+
         function renderWebfilter(webfilterData) {
             const container = document.getElementById('webfilterContainer');
             if (!container) return;
@@ -3902,24 +3993,61 @@
                         html += '</div>';
                         html += '<div id="' + ruleId + '" style="display: none;">';
                         html += '<table class="analysis-table">';
+                        
+                        const wildcardCount = {};
+                        const baseCount = {};
+                        const uniqueWildcardDomains = new Set();
+                        const uniqueBaseDomains = new Set();
+                        
+                        urlfilter.entries.forEach(entry => {
+                            if (entry.wildcardDomain && entry.wildcardDomain !== '-') {
+                                wildcardCount[entry.wildcardDomain] = (wildcardCount[entry.wildcardDomain] || 0) + 1;
+                                uniqueWildcardDomains.add(entry.wildcardDomain);
+                            }
+                            if (entry.baseDomain && entry.baseDomain !== '-') {
+                                baseCount[entry.baseDomain] = (baseCount[entry.baseDomain] || 0) + 1;
+                                uniqueBaseDomains.add(entry.baseDomain);
+                            }
+                        });
+                        
+                        const uniqueWildcardCount = uniqueWildcardDomains.size;
+                        const uniqueBaseCount = uniqueBaseDomains.size;
+                        
                         html += '<thead>';
                         html += '<tr>';
                         html += '<th>序号</th>';
-                        html += '<th>URL</th>';
-                        html += '<th>类型</th>';
-                        html += '<th>动作</th>';
+                        html += '<th style="position: relative;">URL <button onclick="event.stopPropagation(); copyColumnData(\'' + ruleId + '\', 1)" style="margin-left: 8px; padding: 2px 6px; font-size: 10px; cursor: pointer; border-radius: 3px; border: 1px solid #333; background: #fff; color: #333;">复制</button></th>';
+                        html += '<th style="position: relative;">清理后URL <button onclick="event.stopPropagation(); copyColumnData(\'' + ruleId + '\', 2)" style="margin-left: 8px; padding: 2px 6px; font-size: 10px; cursor: pointer; border-radius: 3px; border: 1px solid #333; background: #fff; color: #333;">复制</button></th>';
+                        html += '<th style="position: relative;">通配符域名 <span style="margin-left: 5px; background: rgba(0,0,0,0.2); padding: 1px 5px; border-radius: 10px; font-size: 10px;">' + uniqueWildcardCount + '</span><button onclick="event.stopPropagation(); copyColumnData(\'' + ruleId + '\', 3)" style="margin-left: 8px; padding: 2px 6px; font-size: 10px; cursor: pointer; border-radius: 3px; border: 1px solid #333; background: #fff; color: #333;">复制</button></th>';
+                        html += '<th style="position: relative;">基础域名 <span style="margin-left: 5px; background: rgba(0,0,0,0.2); padding: 1px 5px; border-radius: 10px; font-size: 10px;">' + uniqueBaseCount + '</span><button onclick="event.stopPropagation(); copyColumnData(\'' + ruleId + '\', 4)" style="margin-left: 8px; padding: 2px 6px; font-size: 10px; cursor: pointer; border-radius: 3px; border: 1px solid #333; background: #fff; color: #333;">复制</button></th>';
+                        html += '<th style="position: relative;">类型 <button onclick="event.stopPropagation(); copyColumnData(\'' + ruleId + '\', 5)" style="margin-left: 8px; padding: 2px 6px; font-size: 10px; cursor: pointer; border-radius: 3px; border: 1px solid #333; background: #fff; color: #333;">复制</button></th>';
+                        html += '<th style="position: relative;">动作 <button onclick="event.stopPropagation(); copyColumnData(\'' + ruleId + '\', 6)" style="margin-left: 8px; padding: 2px 6px; font-size: 10px; cursor: pointer; border-radius: 3px; border: 1px solid #333; background: #fff; color: #333;">复制</button></th>';
                         html += '</tr>';
                         html += '</thead>';
                         html += '<tbody>';
 
                         if (urlfilter.entries.length === 0) {
-                            html += '<tr><td colspan="4" style="text-align: center;">无条目</td></tr>';
+                            html += '<tr><td colspan="7" style="text-align: center;">无条目</td></tr>';
                         } else {
                             let entryIndex = 1;
                             for (const entry of urlfilter.entries) {
                                 html += '<tr>';
                                 html += '<td style="text-align: center;">' + entryIndex++ + '</td>';
                                 html += '<td>' + escapeHtml(entry.url) + '</td>';
+                                html += '<td>' + escapeHtml(entry.cleanedUrl) + '</td>';
+                                
+                                if (entry.wildcardDomain && wildcardCount[entry.wildcardDomain] > 1) {
+                                    html += '<td><span style="font-weight: bold; color: #ff6b00; background: #fff3e0; padding: 2px 6px; border-radius: 3px;">' + escapeHtml(entry.wildcardDomain) + '</span></td>';
+                                } else {
+                                    html += '<td>' + escapeHtml(entry.wildcardDomain) + '</td>';
+                                }
+                                
+                                if (entry.baseDomain && baseCount[entry.baseDomain] > 1) {
+                                    html += '<td><span style="font-weight: bold; color: #ff6b00; background: #fff3e0; padding: 2px 6px; border-radius: 3px;">' + escapeHtml(entry.baseDomain) + '</span></td>';
+                                } else {
+                                    html += '<td>' + escapeHtml(entry.baseDomain) + '</td>';
+                                }
+                                
                                 html += '<td>' + escapeHtml(entry.type) + '</td>';
                                 html += '<td><span style="color: ' + (entry.action === 'block' ? '#E74C3C' : '#70AD47') + ';">' + escapeHtml(entry.action) + '</span></td>';
                                 html += '</tr>';
